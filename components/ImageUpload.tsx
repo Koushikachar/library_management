@@ -1,11 +1,9 @@
 "use client";
-import { IKImage, ImageKitProvider, IKUpload } from "imagekitio-next";
 
+import { IKImage, IKContext, IKUpload } from "imagekitio-react";
 import config from "@/lib/config";
 import { useRef, useState } from "react";
-
 import Image from "next/image";
-
 import { toast } from "@/hooks/use-toast";
 
 const {
@@ -20,15 +18,13 @@ const authenticator = async () => {
 
     if (!response.ok) {
       const errorText = await response.text();
-
       throw new Error(
-        `Request failed with status ${response.status}:${errorText}`
+        `Request failed with status ${response.status}: ${errorText}`
       );
     }
+
     const data = await response.json();
-
     const { signature, expire, token } = data;
-
     return { token, expire, signature };
   } catch (error: any) {
     throw new Error(`Authentication request failed: ${error.message}`);
@@ -40,68 +36,122 @@ const ImageUpload = ({
 }: {
   onFileChange: (filePath: string) => void;
 }) => {
-  const ikUploadRef = useRef(null);
-  const [file, setFile] = useState<{ filePath: string } | null>(null);
+  const ikUploadRef = useRef<any>(null);
+  const [file, setFile] = useState<{ filePath: string; fileId: string } | null>(
+    null
+  );
+  const [uploading, setUploading] = useState(false);
 
   const onError = (error: any) => {
-    console.log(error);
+    console.error("Upload error:", error);
+    setUploading(false);
     toast({
-      title: `Image upload failed`,
-      description: `Your Image could not be uploaded. Please try again.`,
+      title: "Image upload failed",
+      description: "Your image could not be uploaded. Please try again.",
       variant: "destructive",
     });
   };
-  const onSuccess = (res: any) => {
-    setFile(res);
-    onFileChange(res.filePath);
 
+  const onSuccess = (res: any) => {
+    console.log("Upload success:", res);
+    setFile(res);
+    setUploading(false);
+    onFileChange(res.filePath);
     toast({
-      title: "Image Uploaded successfully",
-      description: `${res.filePath} uploaded successfully`,
+      title: "Image uploaded successfully",
+      description: `${res.name} uploaded successfully`,
     });
   };
+
+  const onUploadStart = () => {
+    setUploading(true);
+  };
+
   return (
-    <ImageKitProvider
+    <IKContext
       publicKey={publicKey}
       urlEndpoint={urlEndpoint}
       authenticator={authenticator}
     >
-      <IKUpload
-        className="hidden"
-        ref={ikUploadRef}
-        onError={onError}
-        onSuccess={onSuccess}
-        fileName="test-upload.png"
-      />
-      <button
-        className="upload-btn"
+      <div
         onClick={(e) => {
           e.preventDefault();
           if (ikUploadRef.current) {
-            //@ts-ignore
             ikUploadRef.current?.click();
           }
         }}
+        className="flex flex-col items-center justify-center w-full  border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors"
       >
         <Image
           src="/icons/upload.svg"
-          alt="upload-icon"
-          width={20}
-          height={20}
+          alt="Upload"
+          width={40}
+          height={40}
           className="object-contain"
         />
-        <p className="text-base text-light-100">Upload a File</p>
-        {file && <p className="upload-filename">{file.filePath}</p>}
-      </button>
+        <p className="mt-2 text-sm text-gray-600">
+          {uploading ? "Uploading..." : "Upload a File"}
+        </p>
+        <p className="text-xs text-gray-400 mt-1">Click to browse files</p>
+      </div>
+
       {file && (
-        <IKImage
-          alt={file.filePath}
-          path={file.filePath}
-          width={500}
-          height={300}
-        />
+        <div className="mt-4 p-4 border border-gray-200 rounded-lg">
+          <p className="text-sm font-medium mb-2">Uploaded Image:</p>
+          <IKImage
+            path={file.filePath}
+            alt="Uploaded image"
+            width={500}
+            height={300}
+            transformation={[{ width: 300, height: 200 }]}
+            className="rounded-lg"
+          />
+          <p className="text-xs text-gray-500 mt-2 break-all">
+            {file.filePath}
+          </p>
+        </div>
       )}
-    </ImageKitProvider>
+
+      <IKUpload
+        ref={ikUploadRef}
+        onError={onError}
+        onSuccess={onSuccess}
+        onUploadStart={onUploadStart}
+        style={{ display: "none" }}
+        fileName="upload.png"
+        useUniqueFileName={true}
+        validateFile={(file: any) => {
+          const validTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+          ];
+          if (!validTypes.includes(file.type)) {
+            toast({
+              title: "Invalid file type",
+              description:
+                "Please upload an image file (JPEG, PNG, GIF, or WebP)",
+              variant: "destructive",
+            });
+            return false;
+          }
+
+          const maxSize = 10 * 1024 * 1024; // 10MB
+          if (file.size > maxSize) {
+            toast({
+              title: "File too large",
+              description: "Please upload an image smaller than 10MB",
+              variant: "destructive",
+            });
+            return false;
+          }
+
+          return true;
+        }}
+      />
+    </IKContext>
   );
 };
 
