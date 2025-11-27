@@ -8,6 +8,20 @@
       "when": 1764226740579,
       "tag": "0000_optimal_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1764264574540,
+      "tag": "0001_abandoned_magneto",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764268629752,
+      "tag": "0002_futuristic_valeria_richards",
+      "breakpoints": true
     }
   ]
 }
